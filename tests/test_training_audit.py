@@ -11,6 +11,11 @@ class TrainingAuditTest(unittest.TestCase):
         self.assertEqual(result['missing_classes'], [1])
         self.assertEqual(result['invalid_rows'], 2)
 
+    def test_reports_normalized_duplicates_and_label_conflicts(self):
+        result = summarize_rows(['same text\t0', 'same   text\t0', 'same text\t1'], class_count=2)
+        self.assertEqual(result['duplicate_rows'], 1)
+        self.assertEqual(result['conflicting_texts'], 1)
+
 
 if __name__ == '__main__':
     unittest.main()

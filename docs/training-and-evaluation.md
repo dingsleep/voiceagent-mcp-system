@@ -42,8 +42,9 @@ weights.
 The training entrypoint now resolves `train/data`, `train/pretrained`, and
 `train/saved` from the repository location, so the command is independent of
 the current working directory. The seed controls NumPy, PyTorch, and CUDA
-randomness. The best checkpoint is selected by validation loss and is written
-under `train/saved/<dataset>/`, which is intentionally ignored by Git.
+randomness. The best checkpoint is selected by validation macro-F1, with
+validation loss used only to break ties, and is written under
+`train/saved/<dataset>/`, which is intentionally ignored by Git.
 
 ## Metrics
 
@@ -58,7 +59,31 @@ Audit label coverage before training:
 ```bash
 python scripts/check_training_data.py
 python scripts/check_training_data.py --dataset intent --strict
+python scripts/check_training_data.py --dataset intent --fail-on-overlap
 ```
+
+The audit normalizes whitespace before counting duplicate rows and reports
+text shared by `train`, `dev`, and `test`. Use `--fail-on-overlap` when
+preparing a clean experiment split; it remains opt-in because some legacy
+datasets contain repeated templates.
+
+Each training metrics JSON now contains class-level precision/recall/F1 and
+the ten most frequent confusion pairs. This directly identifies the next
+data-cleaning or hard-negative collection task.
+
+Create a cleaned experiment copy before retraining a dataset with leakage:
+
+```bash
+python scripts/prepare_training_data.py --dataset intent --dry-run
+python scripts/prepare_training_data.py --dataset intent
+python -m train.run --model bert --data intent \
+  --data-root train/data_clean --run-tag clean-v1
+```
+
+The cleaner keeps the original files unchanged, removes repeated text/label
+pairs, removes text with conflicting labels, and gives `test` then `dev`
+priority over `train` when the same text appears in multiple splits. Generated
+copies and their experiment checkpoints are ignored by Git.
 
 The existing HTTP benchmark scripts in `test/` measure service throughput
 with Locust. The offline mock pipeline has a dependency-free functional check:

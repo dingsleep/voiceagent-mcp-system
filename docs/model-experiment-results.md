@@ -49,6 +49,43 @@ conda run -n tx_agent python -m train.run \
 The top-k results are relevant because the downstream function-calling layer
 can use ranked intent recall rather than only the first prediction.
 
+## Clean Split Experiment (clean-v1)
+
+The original data audit found duplicate queries and query overlap across
+training, validation, and test splits. `clean-v1` removes duplicate
+text/label pairs, removes text with conflicting labels, and assigns shared
+text to `test`, then `dev`, before `train`. The original files remain intact.
+
+| Dataset | Train | Dev | Test | Cross-split overlap |
+| --- | ---: | ---: | ---: | ---: |
+| Intent | 265,019 | 15,600 | 7,303 | 0 |
+| Reject | 323,570 | 10,049 | 1,146 | 0 |
+
+```bash
+conda run -n tx_agent python scripts/prepare_training_data.py --dataset intent
+conda run -n tx_agent python scripts/prepare_training_data.py --dataset reject
+conda run -n tx_agent python -m train.run --model bert --data intent \
+  --data-root train/data_clean --run-tag clean-v1
+conda run -n tx_agent python -m train.run --model bert_tiny --data reject \
+  --data-root train/data_clean --run-tag clean-v1
+```
+
+| Model | Accuracy | Macro F1 | Additional result |
+| --- | ---: | ---: | --- |
+| Intent `bert.clean-v1` | 86.17% | 82.76% | Top-3 96.03%, Top-5 97.23% |
+| Reject `bert_tiny.clean-v1` | 89.09% | 88.69% | Calibrated threshold 0.6162 |
+
+These scores are not directly comparable with the original results because
+the test sets changed. The clean experiment is the trustworthy baseline for
+future comparisons. Its intent diagnostics show that the main remaining
+errors are `set` versus `increase/decrease` seat controls, which is a focused
+hard-negative data collection target.
+
+When the local `clean-v1` checkpoints exist, both inference services select
+them automatically. Set `VOICE_AGENT_MODEL_TAG` to another local tag to
+choose a different experiment; missing tagged weights fall back to the
+original checkpoint.
+
 ## Local Artifacts
 
 The following files are intentionally ignored by Git:
@@ -57,6 +94,8 @@ The following files are intentionally ignored by Git:
 train/pretrained/**/pytorch_model.bin
 train/saved/reject/bert_tiny.ckpt
 train/saved/intent/bert.ckpt
+train/saved/reject/bert_tiny.clean-v1.ckpt
+train/saved/intent/bert.clean-v1.ckpt
 ```
 
 Training creates machine-readable reports next to the checkpoints:
@@ -64,6 +103,8 @@ Training creates machine-readable reports next to the checkpoints:
 ```text
 train/saved/reject/bert_tiny.metrics.json
 train/saved/intent/bert.metrics.json
+train/saved/reject/bert_tiny.clean-v1.metrics.json
+train/saved/intent/bert.clean-v1.metrics.json
 ```
 
 Run `python scripts/check_release.py --strict` before publishing. It verifies

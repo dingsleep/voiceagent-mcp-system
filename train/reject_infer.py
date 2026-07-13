@@ -17,8 +17,10 @@ from fastapi import FastAPI, Request
 from utils import logger
 
 try:
+    from train.artifacts import prefer_existing_tag
     from train.data_helper import encode_text
 except ImportError:
+    from artifacts import prefer_existing_tag
     from data_helper import encode_text
 
 
@@ -33,6 +35,11 @@ try:
 except ImportError:
     x = import_module('models.' + model_name)
 config = x.Config(dataset)
+config.save_path, config.metrics_path = prefer_existing_tag(
+    config.save_path,
+    config.metrics_path,
+    os.getenv('VOICE_AGENT_MODEL_TAG', 'clean-v1'),
+)
 model = None
 PAD, CLS = '[PAD]', '[CLS]'
 

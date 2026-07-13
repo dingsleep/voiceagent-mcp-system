@@ -59,10 +59,7 @@ def _collect_predictions(config, model, data_iter, class_weights=None):
 
 
 def _classification_metrics(config, labels_all, probs_all, threshold=None):
-    if threshold is not None and config.dataset == 'reject':
-        predict_all = (probs_all[:, 1] >= threshold).astype(int)
-    else:
-        predict_all = np.argmax(probs_all, axis=1)
+    predict_all = _predict_labels(config, probs_all, threshold)
     result = {'acc': metrics.accuracy_score(labels_all, predict_all)}
     precision = metrics.precision_score(labels_all, predict_all, average='macro', zero_division=0)
     recall = metrics.recall_score(labels_all, predict_all, average='macro', zero_division=0)
@@ -78,6 +75,56 @@ def _classification_metrics(config, labels_all, probs_all, threshold=None):
                 labels=range(len(config.class_list)),
             )
     return result
+
+
+def _predict_labels(config, probs_all, threshold=None):
+    if threshold is not None and config.dataset == 'reject':
+        return (probs_all[:, 1] >= threshold).astype(int)
+    return np.argmax(probs_all, axis=1)
+
+
+def build_error_analysis(config, labels_all, probs_all, threshold=None, limit=10):
+    """Return compact class-level diagnostics for the saved metrics report."""
+    predictions = _predict_labels(config, probs_all, threshold)
+    labels = list(range(config.num_classes))
+    precision, recall, f1, support = metrics.precision_recall_fscore_support(
+        labels_all, predictions, labels=labels, zero_division=0
+    )
+    per_class = [
+        {
+            'index': index,
+            'label': config.class_list[index],
+            'precision': float(precision[index]),
+            'recall': float(recall[index]),
+            'f1': float(f1[index]),
+            'support': int(support[index]),
+        }
+        for index in labels
+    ]
+    matrix = metrics.confusion_matrix(labels_all, predictions, labels=labels)
+    confusions = [
+        {
+            'actual_index': actual,
+            'actual_label': config.class_list[actual],
+            'predicted_index': predicted,
+            'predicted_label': config.class_list[predicted],
+            'count': int(matrix[actual, predicted]),
+        }
+        for actual in labels
+        for predicted in labels
+        if actual != predicted and matrix[actual, predicted]
+    ]
+    confusions.sort(key=lambda item: item['count'], reverse=True)
+    return {'per_class': per_class, 'top_confusions': confusions[:limit]}
+
+
+def _evaluate_details(config, model, data_iter, class_weights=None, threshold=None):
+    labels_all, probs_all, loss = _collect_predictions(config, model, data_iter, class_weights)
+    return _classification_metrics(config, labels_all, probs_all, threshold=threshold), loss
+
+
+def _is_better_checkpoint(dev_f1, dev_loss, best_f1, best_loss):
+    return dev_f1 > best_f1 or (np.isclose(dev_f1, best_f1) and dev_loss < best_loss)
 
 
 def train(config, model, train_iter, dev_iter, test_iter):
@@ -97,6 +144,7 @@ def train(config, model, train_iter, dev_iter, test_iter):
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
     total_batch = 0
+    dev_best_f1 = -1.0
     dev_best_loss = float('inf')
     last_improve = 0  # 记录上次验证集loss下降的batch数
     flag = False  # 记录是否很久没有效果提升
@@ -116,8 +164,11 @@ def train(config, model, train_iter, dev_iter, test_iter):
                 true = labels.data.cpu()
                 predic = torch.max(outputs.data, 1)[1].cpu()
                 train_acc = metrics.accuracy_score(true, predic)
-                dev_acc, dev_loss = evaluate(config, model, dev_iter, class_weights=class_weights)
-                if dev_loss < dev_best_loss:
+                dev_result, dev_loss = _evaluate_details(config, model, dev_iter, class_weights=class_weights)
+                dev_acc = dev_result['acc']
+                dev_f1 = dev_result['f1']
+                if _is_better_checkpoint(dev_f1, dev_loss, dev_best_f1, dev_best_loss):
+                    dev_best_f1 = dev_f1
                     dev_best_loss = dev_loss
                     Path(config.save_path).parent.mkdir(parents=True, exist_ok=True)
                     torch.save(model.state_dict(), config.save_path)
@@ -126,8 +177,8 @@ def train(config, model, train_iter, dev_iter, test_iter):
                 else:
                     improve = ''
                 time_dif = get_time_dif(start_time)
-                msg = 'Iter: {0:>6},  Train Loss: {1:>5.2},  Train Acc: {2:>6.2%},  Val Loss: {3:>5.2},  Val Acc: {4:>6.2%},  Time: {5} {6}'
-                logger.info(msg.format(total_batch, loss.item(), train_acc, dev_loss, dev_acc, time_dif, improve))
+                msg = 'Iter: {0:>6},  Train Loss: {1:>5.2},  Train Acc: {2:>6.2%},  Val Loss: {3:>5.2},  Val Acc: {4:>6.2%},  Val F1: {5:>6.2%},  Time: {6} {7}'
+                logger.info(msg.format(total_batch, loss.item(), train_acc, dev_loss, dev_acc, dev_f1, time_dif, improve))
                 model.train()
             if total_batch - last_improve > config.require_improvement:
                 # 早停止
@@ -162,6 +213,9 @@ def test(config, model, test_iter, dev_iter=None, class_weights=None):
     if threshold is not None:
         result['threshold'] = threshold
 
+    test_labels, test_probs, _ = _collect_predictions(config, model, test_iter, class_weights)
+    diagnostics = build_error_analysis(config, test_labels, test_probs, threshold=threshold)
+
     logger.info(f"Precision: {result['precision']}")
     logger.info(f"Recall: {result['recall']}")
     logger.info(f"F1: {result['f1']}")
@@ -177,6 +231,7 @@ def test(config, model, test_iter, dev_iter=None, class_weights=None):
             'device': str(config.device),
             'class_weighting': getattr(config, 'class_weighting', 'none'),
             'metrics': {key: float(value) for key, value in result.items()},
+            'diagnostics': diagnostics,
         }
         Path(metrics_path).parent.mkdir(parents=True, exist_ok=True)
         Path(metrics_path).write_text(json.dumps(report, indent=2), encoding='utf-8')
@@ -186,8 +241,7 @@ def test(config, model, test_iter, dev_iter=None, class_weights=None):
 
 
 def evaluate(config, model, data_iter, test=False, class_weights=None, threshold=None):
-    labels_all, probs_all, loss = _collect_predictions(config, model, data_iter, class_weights)
-    result = _classification_metrics(config, labels_all, probs_all, threshold=threshold)
+    result, loss = _evaluate_details(config, model, data_iter, class_weights, threshold)
     if test:
         return result
     return result['acc'], loss

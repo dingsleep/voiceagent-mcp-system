@@ -11,6 +11,7 @@ build/
 
 # Model files (large binaries)
 train/saved/
+train/data_clean/
 *.bin
 *.ckpt
 *.pth
