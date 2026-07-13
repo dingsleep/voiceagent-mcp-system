@@ -1,0 +1,599 @@
+{
+  "total_tools": 455,
+  "unique_tools": 448,
+  "duplicate_tools": 7,
+  "duplicates": {
+    "Change_Nav_Sign": 2,
+    "Go_POI": 2,
+    "Play_Local_Radio": 2,
+    "Search_Music": 3,
+    "Search_Radio": 2,
+    "Unknown": 2
+  },
+  "duplicate_definitions": {
+    "Change_Nav_Sign": [
+      {
+        "index": 212,
+        "domain": "navigation_map",
+        "property_names": [],
+        "required": [],
+        "description_length": 6
+      },
+      {
+        "index": 213,
+        "domain": "navigation_map",
+        "property_names": [],
+        "required": [],
+        "description_length": 6
+      }
+    ],
+    "Go_POI": [
+      {
+        "index": 422,
+        "domain": "navigation_map",
+        "property_names": [
+          "City",
+          "POI",
+          "index"
+        ],
+        "required": [
+          "POI",
+          "City"
+        ],
+        "description_length": 303
+      },
+      {
+        "index": 423,
+        "domain": "navigation_map",
+        "property_names": [
+          "POI",
+          "Target",
+          "index"
+        ],
+        "required": [
+          "POI",
+          "Target"
+        ],
+        "description_length": 181
+      }
+    ],
+    "Play_Local_Radio": [
+      {
+        "index": 311,
+        "domain": "media",
+        "property_names": [],
+        "required": [],
+        "description_length": 23
+      },
+      {
+        "index": 312,
+        "domain": "media",
+        "property_names": [
+          "AM",
+          "FM"
+        ],
+        "required": [
+          "FM",
+          "AM"
+        ],
+        "description_length": 29
+      }
+    ],
+    "Search_Music": [
+      {
+        "index": 184,
+        "domain": "media",
+        "property_names": [],
+        "required": [],
+        "description_length": 43
+      },
+      {
+        "index": 186,
+        "domain": "media",
+        "property_names": [
+          "Age",
+          "Keywords",
+          "Language",
+          "Mood",
+          "Name",
+          "Scene",
+          "Singer",
+          "Singer2",
+          "Style",
+          "TV",
+          "album",
+          "charts",
+          "exclude",
+          "genre",
+          "location",
+          "type",
+          "variety_show"
+        ],
+        "required": [
+          "charts",
+          "album",
+          "Name",
+          "Singer",
+          "Singer2",
+          "location",
+          "Age",
+          "Language",
+          "Keywords",
+          "Style",
+          "TV",
+          "variety_show",
+          "Mood",
+          "Scene",
+          "genre",
+          "exclude"
+        ],
+        "description_length": 248
+      },
+      {
+        "index": 435,
+        "domain": "media",
+        "property_names": [
+          "Content"
+        ],
+        "required": [
+          "Content"
+        ],
+        "description_length": 59
+      }
+    ],
+    "Search_Radio": [
+      {
+        "index": 185,
+        "domain": "media",
+        "property_names": [],
+        "required": [],
+        "description_length": 38
+      },
+      {
+        "index": 278,
+        "domain": "media",
+        "property_names": [
+          "Key",
+          "Name",
+          "Person",
+          "Today",
+          "Type"
+        ],
+        "required": [
+          "Type",
+          "Key",
+          "Person",
+          "Name",
+          "Today"
+        ],
+        "description_length": 260
+      }
+    ],
+    "Unknown": [
+      {
+        "index": 440,
+        "domain": "dialog_control",
+        "property_names": [],
+        "required": [],
+        "description_length": 237
+      },
+      {
+        "index": 441,
+        "domain": "dialog_control",
+        "property_names": [],
+        "required": [],
+        "description_length": 66
+      }
+    ]
+  },
+  "duplicate_analysis": {
+    "Change_Nav_Sign": {
+      "same_schema": true,
+      "fingerprints": [
+        "415e6b7dffb4"
+      ],
+      "definitions": [
+        {
+          "index": 212,
+          "fingerprint": "415e6b7dffb4",
+          "required": [],
+          "properties": [],
+          "description_length": 6
+        },
+        {
+          "index": 213,
+          "fingerprint": "415e6b7dffb4",
+          "required": [],
+          "properties": [],
+          "description_length": 6
+        }
+      ],
+      "merge_hint": "safe_candidate: definitions have the same schema and description"
+    },
+    "Go_POI": {
+      "same_schema": false,
+      "fingerprints": [
+        "50e00e462bd7",
+        "e57df1efa272"
+      ],
+      "definitions": [
+        {
+          "index": 422,
+          "fingerprint": "50e00e462bd7",
+          "required": [
+            "City",
+            "POI"
+          ],
+          "properties": [
+            "City",
+            "POI",
+            "index"
+          ],
+          "description_length": 303
+        },
+        {
+          "index": 423,
+          "fingerprint": "e57df1efa272",
+          "required": [
+            "POI",
+            "Target"
+          ],
+          "properties": [
+            "POI",
+            "Target",
+            "index"
+          ],
+          "description_length": 181
+        }
+      ],
+      "merge_hint": "do_not_merge_yet: core intent with different slot contracts"
+    },
+    "Play_Local_Radio": {
+      "same_schema": false,
+      "fingerprints": [
+        "84587b5e0e5b",
+        "b230912bae64"
+      ],
+      "definitions": [
+        {
+          "index": 311,
+          "fingerprint": "84587b5e0e5b",
+          "required": [],
+          "properties": [],
+          "description_length": 23
+        },
+        {
+          "index": 312,
+          "fingerprint": "b230912bae64",
+          "required": [
+            "AM",
+            "FM"
+          ],
+          "properties": [
+            "AM",
+            "FM"
+          ],
+          "description_length": 29
+        }
+      ],
+      "merge_hint": "manual_review: duplicate name has different slot contracts"
+    },
+    "Search_Music": {
+      "same_schema": false,
+      "fingerprints": [
+        "21d24b2b2162",
+        "3592d3af16de",
+        "43077bfffc2f"
+      ],
+      "definitions": [
+        {
+          "index": 184,
+          "fingerprint": "43077bfffc2f",
+          "required": [],
+          "properties": [],
+          "description_length": 43
+        },
+        {
+          "index": 186,
+          "fingerprint": "3592d3af16de",
+          "required": [
+            "Age",
+            "Keywords",
+            "Language",
+            "Mood",
+            "Name",
+            "Scene",
+            "Singer",
+            "Singer2",
+            "Style",
+            "TV",
+            "album",
+            "charts",
+            "exclude",
+            "genre",
+            "location",
+            "variety_show"
+          ],
+          "properties": [
+            "Age",
+            "Keywords",
+            "Language",
+            "Mood",
+            "Name",
+            "Scene",
+            "Singer",
+            "Singer2",
+            "Style",
+            "TV",
+            "album",
+            "charts",
+            "exclude",
+            "genre",
+            "location",
+            "type",
+            "variety_show"
+          ],
+          "description_length": 248
+        },
+        {
+          "index": 435,
+          "fingerprint": "21d24b2b2162",
+          "required": [
+            "Content"
+          ],
+          "properties": [
+            "Content"
+          ],
+          "description_length": 59
+        }
+      ],
+      "merge_hint": "do_not_merge_yet: core intent with different slot contracts"
+    },
+    "Search_Radio": {
+      "same_schema": false,
+      "fingerprints": [
+        "377f1fbc174f",
+        "41c89aab871b"
+      ],
+      "definitions": [
+        {
+          "index": 185,
+          "fingerprint": "377f1fbc174f",
+          "required": [],
+          "properties": [],
+          "description_length": 38
+        },
+        {
+          "index": 278,
+          "fingerprint": "41c89aab871b",
+          "required": [
+            "Key",
+            "Name",
+            "Person",
+            "Today",
+            "Type"
+          ],
+          "properties": [
+            "Key",
+            "Name",
+            "Person",
+            "Today",
+            "Type"
+          ],
+          "description_length": 260
+        }
+      ],
+      "merge_hint": "do_not_merge_yet: core intent with different slot contracts"
+    },
+    "Unknown": {
+      "same_schema": false,
+      "fingerprints": [
+        "aea6e9250572",
+        "c3f4f3cd9b66"
+      ],
+      "definitions": [
+        {
+          "index": 440,
+          "fingerprint": "c3f4f3cd9b66",
+          "required": [],
+          "properties": [],
+          "description_length": 237
+        },
+        {
+          "index": 441,
+          "fingerprint": "aea6e9250572",
+          "required": [],
+          "properties": [],
+          "description_length": 66
+        }
+      ],
+      "merge_hint": "review_description: schema is aligned but descriptions differ"
+    }
+  },
+  "domains": {
+    "calendar_schedule": 4,
+    "climate_control": 44,
+    "dialog_control": 12,
+    "driving_assistance": 19,
+    "life_service": 3,
+    "media": 62,
+    "navigation_map": 69,
+    "other": 54,
+    "phone_connectivity": 20,
+    "scene_mode": 8,
+    "seat_control": 22,
+    "system_settings": 64,
+    "vehicle_body": 44,
+    "vehicle_service": 4,
+    "voice_assistant": 20,
+    "weather_info": 6
+  },
+  "prefixes": {
+    "2D": 1,
+    "3D": 1,
+    "Accelerate": 1,
+    "Add": 1,
+    "Adjust": 5,
+    "Ahead": 1,
+    "Answer": 1,
+    "Ask": 18,
+    "Avoid": 4,
+    "Back": 2,
+    "Build": 1,
+    "Call": 8,
+    "Cancel": 13,
+    "Change": 5,
+    "Check": 1,
+    "Close": 102,
+    "Collect": 2,
+    "Company": 1,
+    "Complains": 1,
+    "Confirm": 1,
+    "Continue": 1,
+    "Create": 1,
+    "Dec": 11,
+    "Delete": 3,
+    "Display": 1,
+    "Download": 2,
+    "Flush": 1,
+    "Front": 1,
+    "Get": 4,
+    "Go": 5,
+    "Group": 1,
+    "Head": 1,
+    "High": 1,
+    "Home": 1,
+    "Inc": 11,
+    "Join": 1,
+    "List": 2,
+    "Main": 2,
+    "Media": 6,
+    "Nav": 9,
+    "North": 1,
+    "Oil": 1,
+    "Only": 1,
+    "Open": 106,
+    "POI": 1,
+    "Play": 11,
+    "Query": 7,
+    "Quick": 2,
+    "Quit": 2,
+    "Radio": 2,
+    "Record": 3,
+    "Reject": 1,
+    "Replay": 2,
+    "Reserve": 1,
+    "Search": 7,
+    "Select": 1,
+    "Set": 37,
+    "Silent": 1,
+    "Slow": 1,
+    "Smart": 1,
+    "Speed": 1,
+    "Stop": 2,
+    "Switch": 3,
+    "Sync": 1,
+    "Take": 1,
+    "Target": 1,
+    "Temp": 1,
+    "Traffic": 1,
+    "Unknown": 2,
+    "View": 18
+  },
+  "configured_functions": 438,
+  "tools_missing_from_class_config": [
+    "Avoid_Fee",
+    "Cancel_High_Way_First",
+    "Close_Cruise_Broadcast",
+    "Nav_To_Company",
+    "Nav_To_Home",
+    "Open_Cruise_Broadcast",
+    "Query_Destination_Weather",
+    "Radio_Am",
+    "Radio_Fm",
+    "Set_Meeting_Place"
+  ],
+  "class_config_missing_from_tools": [],
+  "validation": [
+    {
+      "location": "tools1[192]:Close_Cruise_Broadcast",
+      "code": "not_in_class_config",
+      "message": "function not listed in config/class.txt"
+    },
+    {
+      "location": "tools1[193]:Open_Cruise_Broadcast",
+      "code": "not_in_class_config",
+      "message": "function not listed in config/class.txt"
+    },
+    {
+      "location": "tools1[204]:Nav_To_Home",
+      "code": "not_in_class_config",
+      "message": "function not listed in config/class.txt"
+    },
+    {
+      "location": "tools1[205]:Nav_To_Company",
+      "code": "not_in_class_config",
+      "message": "function not listed in config/class.txt"
+    },
+    {
+      "location": "tools1[250]:Cancel_High_Way_First",
+      "code": "not_in_class_config",
+      "message": "function not listed in config/class.txt"
+    },
+    {
+      "location": "tools1[255]:Avoid_Fee",
+      "code": "not_in_class_config",
+      "message": "function not listed in config/class.txt"
+    },
+    {
+      "location": "tools1[271]:Set_Meeting_Place",
+      "code": "not_in_class_config",
+      "message": "function not listed in config/class.txt"
+    },
+    {
+      "location": "tools1[309]:Radio_Am",
+      "code": "not_in_class_config",
+      "message": "function not listed in config/class.txt"
+    },
+    {
+      "location": "tools1[310]:Radio_Fm",
+      "code": "not_in_class_config",
+      "message": "function not listed in config/class.txt"
+    },
+    {
+      "location": "tools1[415]:Query_Destination_Weather",
+      "code": "not_in_class_config",
+      "message": "function not listed in config/class.txt"
+    },
+    {
+      "location": "Search_Music",
+      "code": "duplicate_name",
+      "message": "appears 3 times"
+    },
+    {
+      "location": "Search_Radio",
+      "code": "duplicate_name",
+      "message": "appears 2 times"
+    },
+    {
+      "location": "Change_Nav_Sign",
+      "code": "duplicate_name",
+      "message": "appears 2 times"
+    },
+    {
+      "location": "Play_Local_Radio",
+      "code": "duplicate_name",
+      "message": "appears 2 times"
+    },
+    {
+      "location": "Go_POI",
+      "code": "duplicate_name",
+      "message": "appears 2 times"
+    },
+    {
+      "location": "Unknown",
+      "code": "duplicate_name",
+      "message": "appears 2 times"
+    }
+  ]
+}

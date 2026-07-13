@@ -1,0 +1,4 @@
+{"query":"北京明天天气怎么样","intent":"weather_query","function":"weather.query","slots":{"city":"北京","date":"明天"}}
+{"query":"播放周杰伦的歌","intent":"music_play","function":"music.play","slots":{"artist":"周杰伦"}}
+{"query":"导航到公司","intent":"map_route","function":"map.route","slots":{"destination":"公司"}}
+{"query":"asdfghjkl","intent":"reject","function":"","slots":{}}

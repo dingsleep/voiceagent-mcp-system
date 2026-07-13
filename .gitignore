@@ -1,0 +1,35 @@
+# Secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Model files (large binaries)
+train/saved/
+*.bin
+*.ckpt
+*.pth
+*.safetensors
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+__MACOSX/
+
+# Logs
+log/
+*.log
+train/result/
+
+# Test outputs
+test/result/
+test/single_slots_result.txt

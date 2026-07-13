@@ -1,0 +1,13 @@
+flask
+flask-socketio
+fastapi
+uvicorn
+python-dotenv
+redis
+requests
+openai
+mcp
+torch
+numpy
+scikit-learn
+tqdm

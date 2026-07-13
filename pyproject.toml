@@ -1,0 +1,13 @@
+[project]
+name = "voiceagent-mcp-system"
+version = "0.1.0"
+description = "A vehicle voice dialogue agent with LLM orchestration, Function Calling, MCP tools, and runnable mock mode."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+agent-chat = "voice_agent_mcp.cli:main"
+agent-api = "voice_agent_mcp.api:main"
+
+[tool.ruff]
+line-length = 100
