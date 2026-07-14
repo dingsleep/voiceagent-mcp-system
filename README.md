@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/dingsleep/voiceagent-mcp-system/actions/workflows/ci.yml/badge.svg)](https://github.com/dingsleep/voiceagent-mcp-system/actions/workflows/ci.yml)
 
+> 仓库默认以无密钥的 `rule` 模式运行。保留的 BERT + Function Calling NLU 可在本地服务化后接入 Demo API；远程集成已使用 OpenAI-compatible DeepSeek endpoint 验证，并与确定性 Demo 评测分开统计。
+
 面向车载场景的多轮任务型对话 Agent。项目覆盖从数据治理、BERT 意图识别与拒识，到 Query Rewrite、Function Calling、MCP 工具调用和流式响应的完整链路。
 
 ## 项目亮点
@@ -124,6 +126,31 @@ conda run -n tx_agent python eval/evaluate_demo.py ^
   --allow-network ^
   --report eval/reports/remote-report.json
 ```
+
+### 已验证的 DeepSeek 远程 NLU 路径
+
+远程路径将密钥保留在被 Git 忽略的 `.env` 中。`API_KEY` 同时兼容裸 provider key 和带 `Bearer ` 前缀的值，两种形式都不得提交。复制 `.env.example` 后，可按以下方式配置 DeepSeek-compatible endpoint：
+
+```dotenv
+BASE_URL=https://api.deepseek.com/chat/completions
+API_KEY=your-api-key
+LLM_MODEL=deepseek-v4-flash
+VOICE_AGENT_NLU_BACKEND=remote
+VOICE_AGENT_NLU_URL=http://127.0.0.1:8009/chatnlu-server/v1
+VOICE_AGENT_NLU_TIMEOUT=5
+```
+
+按意图识别服务、遗留 NLU 服务、Demo API 的顺序启动：
+
+```bash
+conda run -n tx_agent python -m train.intent_infer
+conda run -n tx_agent python -m function_call.chatnlu_infer
+conda run -n tx_agent python -m voice_agent_mcp.api
+```
+
+严格远程评测覆盖天气、音乐、导航和拒识分流。2026-07-14 在本地验证环境中，4/4 用例的端到端 intent/function/slot 均匹配；3 个任务用例均实际使用远程 NLU，P95 延迟为 3.1 秒。详细报告仅写入被 Git 忽略的 `eval/reports/`。
+
+运行时会显式暴露远程降级，而不是掩盖它：最终 frame 包含 `nlu_backend`、`fallback_reason`、`trace_id` 和耗时。向 Provider 发起请求前，同名遗留工具 schema 会收敛为每个函数一份 canonical schema；原始 schema 不改动，保留给审计与后续治理。
 
 报告分别记录端到端准确率、远程 NLU 成功率、降级原因分布和 P50/P95 延迟。默认 `rule` 评测和 GitHub Actions 不会调用外部模型服务。
 
