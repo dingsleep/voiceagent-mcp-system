@@ -23,7 +23,7 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", "0"))
         body = self.rfile.read(length).decode("utf-8")
         payload = json.loads(body or "{}")
-        query = payload.get("query", "")
+        query = payload.get("query") or payload.get("transcript", "")
         sender_id = payload.get("sender_id", "demo")
         self._json({"frames": agent.handle_as_dicts(query, sender_id)})
 

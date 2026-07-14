@@ -4,7 +4,7 @@ from .agent import DialogueAgent
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Run the AgentMCP dialogue demo.")
+    parser = argparse.ArgumentParser(description="Run the vehicle dialogue Agent demo.")
     parser.add_argument("--query", help="single query mode")
     parser.add_argument("--sender-id", default="demo")
     args = parser.parse_args()
@@ -14,7 +14,7 @@ def main() -> None:
         _print_frames(agent.handle_as_dicts(args.query, args.sender_id))
         return
 
-    print("AgentMCP Dialogue. Type 'exit' to quit.")
+    print("VoiceAgent MCP Dialogue. Type 'exit' to quit.")
     while True:
         query = input("> ").strip()
         if query.lower() in {"exit", "quit"}:
