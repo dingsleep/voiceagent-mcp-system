@@ -73,18 +73,21 @@ conda run -n tx_agent python -m train.run --model bert_tiny --data reject \
 | Model | Accuracy | Macro F1 | Additional result |
 | --- | ---: | ---: | --- |
 | Intent `bert.clean-v1` | 86.17% | 82.76% | Top-3 96.03%, Top-5 97.23% |
+| Intent `bert.clean-balanced-v1` | 87.79% | 85.18% | Top-3 97.04%, Top-5 97.92% |
 | Reject `bert_tiny.clean-v1` | 89.09% | 88.69% | Calibrated threshold 0.6162 |
 
 These scores are not directly comparable with the original results because
 the test sets changed. The clean experiment is the trustworthy baseline for
-future comparisons. Its intent diagnostics show that the main remaining
+future comparisons. On the same clean split, balanced cross-entropy improves
+intent macro-F1 by 2.42 percentage points, so `clean-balanced-v1` is the
+selected intent checkpoint. Its diagnostics show that the main remaining
 errors are `set` versus `increase/decrease` seat controls, which is a focused
 hard-negative data collection target.
 
-When the local `clean-v1` checkpoints exist, both inference services select
-them automatically. Set `VOICE_AGENT_MODEL_TAG` to another local tag to
-choose a different experiment; missing tagged weights fall back to the
-original checkpoint.
+The intent service prefers local `clean-balanced-v1`, then `clean-v1`, then
+the original checkpoint. The reject service prefers `clean-v1`, then its
+original checkpoint. Set `VOICE_AGENT_MODEL_TAG` to choose another local tag;
+missing tagged weights fall back safely.
 
 ## Local Artifacts
 
@@ -96,6 +99,7 @@ train/saved/reject/bert_tiny.ckpt
 train/saved/intent/bert.ckpt
 train/saved/reject/bert_tiny.clean-v1.ckpt
 train/saved/intent/bert.clean-v1.ckpt
+train/saved/intent/bert.clean-balanced-v1.ckpt
 ```
 
 Training creates machine-readable reports next to the checkpoints:
@@ -105,6 +109,7 @@ train/saved/reject/bert_tiny.metrics.json
 train/saved/intent/bert.metrics.json
 train/saved/reject/bert_tiny.clean-v1.metrics.json
 train/saved/intent/bert.clean-v1.metrics.json
+train/saved/intent/bert.clean-balanced-v1.metrics.json
 ```
 
 Run `python scripts/check_release.py --strict` before publishing. It verifies

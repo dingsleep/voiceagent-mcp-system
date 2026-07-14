@@ -34,11 +34,20 @@ try:
 except ImportError:
     x = import_module('models.' + model_name)
 config = x.Config(dataset)
-config.save_path, config.metrics_path = prefer_existing_tag(
-    config.save_path,
-    config.metrics_path,
-    os.getenv('VOICE_AGENT_MODEL_TAG', 'clean-v1'),
-)
+model_tag = os.getenv('VOICE_AGENT_MODEL_TAG')
+if model_tag:
+    config.save_path, config.metrics_path = prefer_existing_tag(
+        config.save_path, config.metrics_path, model_tag
+    )
+else:
+    original_checkpoint, original_metrics = config.save_path, config.metrics_path
+    config.save_path, config.metrics_path = prefer_existing_tag(
+        original_checkpoint, original_metrics, 'clean-balanced-v1'
+    )
+    if config.save_path == original_checkpoint:
+        config.save_path, config.metrics_path = prefer_existing_tag(
+            original_checkpoint, original_metrics, 'clean-v1'
+        )
 model = None
 PAD, CLS = '[PAD]', '[CLS]'
 TOPK = 5
