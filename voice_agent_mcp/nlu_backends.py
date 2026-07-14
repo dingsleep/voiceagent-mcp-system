@@ -21,6 +21,14 @@ REMOTE_FUNCTION_MAP = {
     "Go_POI": "map.route",
 }
 
+REMOTE_INTENT_MAP = {
+    "Query_Weather": "weather_query",
+    "Query_Timely_Weather": "weather_query",
+    "Search_Music": "music_play",
+    "Play_Online_Music": "music_play",
+    "Go_POI": "map_route",
+}
+
 
 @dataclass(frozen=True)
 class NLUDecision:
@@ -122,7 +130,7 @@ def _parse_response(payload: dict) -> NLUResult:
     if not isinstance(intent, str) or not isinstance(function, str) or not isinstance(slots, dict):
         raise ValueError("remote NLU response must contain string intent/function and object slots")
     return NLUResult(
-        intent=intent,
+        intent=REMOTE_INTENT_MAP.get(function, intent),
         function=REMOTE_FUNCTION_MAP.get(function, function),
         slots=_normalize_slots(function, slots),
     )

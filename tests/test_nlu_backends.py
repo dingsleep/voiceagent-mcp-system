@@ -35,6 +35,7 @@ class NluBackendTest(unittest.TestCase):
         )
         final = DialogueAgent(nlu_backend=backend).handle_as_dicts("北京明天天气")[-1]
 
+        self.assertEqual(final["intent"], "weather_query")
         self.assertEqual(final["function"], "weather.query")
         self.assertEqual(final["slots"], {"city": "北京", "date": "明天"})
         self.assertEqual(final["metadata"]["nlu_backend"], "remote")

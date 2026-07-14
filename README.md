@@ -116,6 +116,17 @@ conda run -n tx_agent python scripts/check_project.py
 
 `check_project.py` 会运行文本质量检查、发布检查、训练数据审计、Demo 评测、Function Calling schema 报告和单元测试。
 
+远程链路评测需要显式授权网络调用，结果默认只写到本地忽略目录：
+
+```bash
+conda run -n tx_agent python eval/evaluate_demo.py ^
+  --backend remote ^
+  --allow-network ^
+  --report eval/reports/remote-report.json
+```
+
+报告分别记录端到端准确率、远程 NLU 成功率、降级原因分布和 P50/P95 延迟。默认 `rule` 评测和 GitHub Actions 不会调用外部模型服务。
+
 ## 仓库结构
 
 | 路径 | 说明 |

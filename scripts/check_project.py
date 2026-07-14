@@ -87,7 +87,15 @@ def main() -> int:
         return data_result.returncode
 
     smoke = subprocess.run(
-        [sys.executable, "-m", "voice_agent_mcp.cli", "--query", "北京明天天气怎么样"],
+        [
+            sys.executable,
+            "-m",
+            "voice_agent_mcp.cli",
+            "--nlu-backend",
+            "rule",
+            "--query",
+            "北京明天天气怎么样",
+        ],
         cwd=ROOT,
         text=True,
         capture_output=True,

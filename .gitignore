@@ -34,3 +34,4 @@ train/result/
 # Test outputs
 test/result/
 test/single_slots_result.txt
+eval/reports/

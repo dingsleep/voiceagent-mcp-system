@@ -25,6 +25,14 @@ python -m voice_agent_mcp.cli --query "北京明天天气怎么样"
 
 远程调用携带 `query`、`trace_id` 和 `enable_dm=false`，并校验返回的 `intent`、`function`、`slots`。服务不可达、响应不合法或工具不在 Demo 注册表中时，系统自动回落到规则后端。每个最终 frame 的 `metadata` 会记录后端、降级原因和总耗时，便于定位问题。
 
+远程模式评测必须显式执行 `--allow-network`，并建议写入 `eval/reports/`：
+
+```bash
+python eval/evaluate_demo.py --backend remote --allow-network --report eval/reports/remote-report.json
+```
+
+报告会分别呈现端到端结果、远程 NLU 成功率、fallback 原因和 P50/P95 延迟；规则后端的默认评测不会请求任何外部服务。
+
 ## 示例输出
 
 ```text
