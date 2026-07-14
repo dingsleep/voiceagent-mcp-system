@@ -19,6 +19,7 @@ REMOTE_FUNCTION_MAP = {
     "Search_Music": "music.play",
     "Play_Online_Music": "music.play",
     "Go_POI": "map.route",
+    "Go_Company": "map.route",
 }
 
 REMOTE_INTENT_MAP = {
@@ -27,6 +28,7 @@ REMOTE_INTENT_MAP = {
     "Search_Music": "music_play",
     "Play_Online_Music": "music_play",
     "Go_POI": "map_route",
+    "Go_Company": "map_route",
 }
 
 
@@ -78,6 +80,14 @@ class RemoteNluBackend:
         started = time.perf_counter()
         payload = {"query": query, "trace_id": trace_id, "enable_dm": False}
         response = self._transport(self.endpoint, payload, self.timeout_seconds)
+        if response.get("source") == "fallback":
+            fallback = RuleNluBackend().parse(query, trace_id)
+            return NLUDecision(
+                result=fallback.result,
+                backend=fallback.backend,
+                latency_ms=_elapsed_ms(started),
+                fallback_reason=f"remote_fallback:{response.get('fallback_reason') or 'unknown'}",
+            )
         result = _parse_response(response)
         return NLUDecision(result=result, backend=self.name, latency_ms=_elapsed_ms(started))
 
@@ -145,11 +155,13 @@ def _normalize_slots(function: str, slots: dict) -> dict:
             normalized["date"] = date
         return normalized
     if function in {"Search_Music", "Play_Online_Music"}:
-        artist = _first_slot(slots, "Singer", "singer", "Artist", "artist")
+        artist = _first_slot(slots, "Singer", "singer", "Artist", "artist", "\u6b4c\u624b")
         return {"artist": artist} if artist else {}
     if function == "Go_POI":
         destination = _first_slot(slots, "POI", "poi", "Destination", "destination", "Name", "name")
         return {"destination": destination} if destination else {}
+    if function == "Go_Company":
+        return {"destination": _first_slot(slots, "POI", "Destination") or "\u516c\u53f8"}
     return slots
 
 

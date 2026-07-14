@@ -51,6 +51,53 @@ class NluBackendTest(unittest.TestCase):
         self.assertEqual(final["metadata"]["nlu_backend"], "rule")
         self.assertEqual(final["metadata"]["fallback_reason"], "remote_error:RuntimeError")
 
+    def test_remote_service_fallback_is_not_reported_as_remote_success(self):
+        backend = RemoteNluBackend(
+            "http://nlu.example/v1",
+            transport=lambda endpoint, payload, timeout_seconds: {
+                "intent": "weather_query",
+                "function": "Query_Weather",
+                "slots": {"City": "北京"},
+                "source": "fallback",
+                "fallback_reason": "llm_request_failed",
+            },
+        )
+        final = DialogueAgent(nlu_backend=backend).handle_as_dicts("北京明天天气")[-1]
+
+        self.assertEqual(final["metadata"]["nlu_backend"], "rule")
+        self.assertEqual(
+            final["metadata"]["fallback_reason"],
+            "remote_fallback:llm_request_failed",
+        )
+
+    def test_legacy_music_slot_alias_is_normalized_for_demo_tool(self):
+        backend = RemoteNluBackend(
+            "http://nlu.example/v1",
+            transport=lambda endpoint, payload, timeout_seconds: {
+                "intent": "music search",
+                "function": "Search_Music",
+                "slots": {"\u6b4c\u624b": "\u5468\u6770\u4f26"},
+            },
+        )
+        final = DialogueAgent(nlu_backend=backend).handle_as_dicts("\u64ad\u653e\u5468\u6770\u4f26\u7684\u6b4c")[-1]
+
+        self.assertEqual(final["function"], "music.play")
+        self.assertEqual(final["slots"], {"artist": "\u5468\u6770\u4f26"})
+
+    def test_legacy_company_navigation_uses_implicit_destination(self):
+        backend = RemoteNluBackend(
+            "http://nlu.example/v1",
+            transport=lambda endpoint, payload, timeout_seconds: {
+                "intent": "company navigation",
+                "function": "Go_Company",
+                "slots": {},
+            },
+        )
+        final = DialogueAgent(nlu_backend=backend).handle_as_dicts("\u5bfc\u822a\u5230\u516c\u53f8")[-1]
+
+        self.assertEqual(final["function"], "map.route")
+        self.assertEqual(final["slots"], {"destination": "\u516c\u53f8"})
+
     def test_unsupported_remote_tool_falls_back_to_demo_contract(self):
         backend = RemoteNluBackend(
             "http://nlu.example/v1",

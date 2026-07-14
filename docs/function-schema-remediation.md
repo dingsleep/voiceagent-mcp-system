@@ -75,3 +75,16 @@ Fixed by changing `required` to `["Emergency"]`.
 - Do not split `function_call/function.py` until duplicate and config coverage issues are resolved.
 - Do not rename tool functions before checking `config/class.txt`, `config/slot_intent.json`, training labels, and benchmark files.
 - Do not delete duplicate schemas without regression tests.
+
+## Runtime Handling
+
+The raw catalog intentionally remains unchanged for auditability. The full NLU
+service now selects one canonical schema for each duplicate function name
+before sending candidates to an OpenAI-compatible tool-calling API. Selection
+prefers the schema with more declared properties, then the longer description.
+This prevents duplicate function names from invalidating a tool-call request
+while source-level deduplication remains a separate governance task.
+
+Remote NLU responses also carry a `source` and `fallback_reason`. This keeps a
+legacy mock fallback visible to the runnable demo and to remote evaluation,
+rather than misreporting it as a successful LLM tool call.

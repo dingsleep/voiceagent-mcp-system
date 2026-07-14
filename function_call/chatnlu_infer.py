@@ -26,13 +26,17 @@ except ImportError:  # pragma: no cover - service mode requires runtime deps.
     uvicorn = None
 
 try:
+    from function_call.api_auth import bearer_authorization
     from function_call.function import tools1
     from function_call.slot_process import intent_slot
     from function_call.dm.factory import DMFactory
+    from function_call.tool_selection import build_unique_tool_map
 except ImportError:  # pragma: no cover - keeps direct script execution working.
+    from api_auth import bearer_authorization
     from function import tools1
     from slot_process import intent_slot
     from dm.factory import DMFactory
+    from tool_selection import build_unique_tool_map
 
 
 app = FastAPI() if FastAPI else None
@@ -62,10 +66,7 @@ def load_slot_map():
 
 
 def build_tool_map():
-    tool_map: dict[str, list[dict]] = {}
-    for item in tools1:
-        tool_map.setdefault(item["function"]["name"], []).append(item)
-    return tool_map
+    return build_unique_tool_map(tools1)
 
 
 id2func, func2name, name2id = load_intent_maps()
@@ -75,15 +76,19 @@ tool_map = build_tool_map()
 
 def send_messages(messages, tool_lst):
     if not settings.api_key or not settings.base_url:
-        return None
+        return None, "llm_not_configured"
 
-    headers = {"Authorization": settings.api_key, "Content-Type": "application/json"}
+    headers = {
+        "Authorization": bearer_authorization(settings.api_key),
+        "Content-Type": "application/json",
+    }
     data = {
         "model": settings.llm_model,
         "messages": messages,
         "tools": tool_lst,
         "temperature": 1e-6,
-        "top_p": 0,
+        # DeepSeek validates top_p in (0, 1]; temperature keeps this deterministic.
+        "top_p": 1,
     }
     try:
         response = requests.post(
@@ -93,10 +98,11 @@ def send_messages(messages, tool_lst):
             timeout=settings.request_timeout,
         )
         response.raise_for_status()
-        return response.json()["choices"][0]["message"].get("tool_calls")
+        tool_calls = response.json()["choices"][0]["message"].get("tool_calls")
+        return tool_calls, "" if tool_calls else "llm_no_tool_call"
     except Exception as exc:
         logger.error("Function Calling LLM failed: %s", exc)
-        return None
+        return None, "llm_request_failed"
 
 
 def intent_recall(query, trace_id):
@@ -140,13 +146,13 @@ def predict(query, trace_id):
             {"role": "system", "content": prompts.NLU_SYSTEM_PROMPT},
             {"role": "user", "content": query},
         ]
-        tool_calls = send_messages(messages, now_tool)
+        tool_calls, fallback_reason = send_messages(messages, now_tool)
         if not tool_calls:
-            return _mock_nlu(query)
-        return intent_slot(tool_calls, func2name, slot_map)
+            return _mock_nlu(query), "fallback", fallback_reason
+        return intent_slot(tool_calls, func2name, slot_map), "tool_call", ""
     except Exception as exc:
         logger.error("NLU predict failed: %s", exc)
-        return _mock_nlu(query)
+        return _mock_nlu(query), "fallback", "nlu_predict_failed"
 
 
 async def inference(request: Request):
@@ -156,7 +162,7 @@ async def inference(request: Request):
     enable_dm = json_info.get("enable_dm", True)
     trace_id = json_info.get("trace_id", "1")
 
-    nlu = predict(query, trace_id)
+    nlu, source, fallback_reason = predict(query, trace_id)
     intent, slots = _parse_nlu(nlu)
     intent_id = name2id.get(intent, "")
     func_name = id2func.get(intent_id, "Unknown")
@@ -168,6 +174,8 @@ async def inference(request: Request):
         "intent_id": intent_id,
         "function": func_name,
         "slots": slots,
+        "source": source,
+        "fallback_reason": fallback_reason,
     }
 
     if enable_dm and func_name != "Unknown":
