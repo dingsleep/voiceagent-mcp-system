@@ -9,6 +9,9 @@ import uuid
 from pathlib import Path
 
 import requests
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 import prompts
 from config.settings import settings

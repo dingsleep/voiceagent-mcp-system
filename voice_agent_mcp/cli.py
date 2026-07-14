@@ -2,9 +2,11 @@ import argparse
 
 from .agent import DialogueAgent
 from .nlu_backends import build_nlu_backend
+from .runtime import load_local_env
 
 
 def main() -> None:
+    load_local_env()
     parser = argparse.ArgumentParser(description="Run the vehicle dialogue Agent demo.")
     parser.add_argument("--query", help="single query mode")
     parser.add_argument("--sender-id", default="demo")

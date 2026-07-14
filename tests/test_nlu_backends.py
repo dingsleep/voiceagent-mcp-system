@@ -24,6 +24,21 @@ class NluBackendTest(unittest.TestCase):
         self.assertEqual(final["metadata"]["trace_id"], "trace-1")
         self.assertEqual(calls[0][1]["enable_dm"], False)
 
+    def test_legacy_weather_contract_is_normalized_for_demo_tool(self):
+        backend = RemoteNluBackend(
+            "http://nlu.example/v1",
+            transport=lambda endpoint, payload, timeout_seconds: {
+                "intent": "天气查询",
+                "function": "Query_Weather",
+                "slots": {"City": "北京", "Date": "明天"},
+            },
+        )
+        final = DialogueAgent(nlu_backend=backend).handle_as_dicts("北京明天天气")[-1]
+
+        self.assertEqual(final["function"], "weather.query")
+        self.assertEqual(final["slots"], {"city": "北京", "date": "明天"})
+        self.assertEqual(final["metadata"]["nlu_backend"], "remote")
+
     def test_remote_failure_falls_back_to_rule_backend(self):
         def unavailable(endpoint, payload, timeout_seconds):
             raise RuntimeError("connection refused")

@@ -2,6 +2,10 @@ import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from .runtime import load_local_env
+
+load_local_env()
+
 from .agent import DialogueAgent
 
 

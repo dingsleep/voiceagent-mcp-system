@@ -13,6 +13,15 @@ from urllib.request import Request, urlopen
 from .nlu import NLUResult, parse_task
 
 
+REMOTE_FUNCTION_MAP = {
+    "Query_Weather": "weather.query",
+    "Query_Timely_Weather": "weather.query",
+    "Search_Music": "music.play",
+    "Play_Online_Music": "music.play",
+    "Go_POI": "map.route",
+}
+
+
 @dataclass(frozen=True)
 class NLUDecision:
     result: NLUResult
@@ -112,7 +121,36 @@ def _parse_response(payload: dict) -> NLUResult:
     slots = payload.get("slots", {})
     if not isinstance(intent, str) or not isinstance(function, str) or not isinstance(slots, dict):
         raise ValueError("remote NLU response must contain string intent/function and object slots")
-    return NLUResult(intent=intent, function=function, slots=slots)
+    return NLUResult(
+        intent=intent,
+        function=REMOTE_FUNCTION_MAP.get(function, function),
+        slots=_normalize_slots(function, slots),
+    )
+
+
+def _normalize_slots(function: str, slots: dict) -> dict:
+    if function in {"Query_Weather", "Query_Timely_Weather"}:
+        normalized = {}
+        if city := _first_slot(slots, "City", "city"):
+            normalized["city"] = city
+        if date := _first_slot(slots, "Date", "date", "Time", "time"):
+            normalized["date"] = date
+        return normalized
+    if function in {"Search_Music", "Play_Online_Music"}:
+        artist = _first_slot(slots, "Singer", "singer", "Artist", "artist")
+        return {"artist": artist} if artist else {}
+    if function == "Go_POI":
+        destination = _first_slot(slots, "POI", "poi", "Destination", "destination", "Name", "name")
+        return {"destination": destination} if destination else {}
+    return slots
+
+
+def _first_slot(slots: dict, *names: str):
+    for name in names:
+        value = slots.get(name)
+        if value not in (None, ""):
+            return value
+    return ""
 
 
 def _elapsed_ms(started: float) -> int:
