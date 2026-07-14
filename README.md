@@ -1,5 +1,7 @@
 # VoiceAgent MCP System
 
+[![CI](https://github.com/dingsleep/voiceagent-mcp-system/actions/workflows/ci.yml/badge.svg)](https://github.com/dingsleep/voiceagent-mcp-system/actions/workflows/ci.yml)
+
 一个面向车载语音场景的 **LLM + Agent + MCP 多轮任务型对话系统**。
 
 这个仓库不是玩具 Demo，也不是课程源码原样堆上来。它保留了原项目的核心能力，并做了工程化整理：集中配置、Prompt 修复、Redis 降级、本地可跑 Demo、测试和文档，方便 GitHub 展示和面试讲解。
