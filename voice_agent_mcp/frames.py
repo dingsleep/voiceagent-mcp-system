@@ -8,6 +8,7 @@ class Frame:
     intent: str = ""
     function: str = ""
     slots: dict | None = None
+    metadata: dict | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -16,14 +17,22 @@ class Frame:
             "intent": self.intent,
             "function": self.function,
             "slots": self.slots or {},
+            "metadata": self.metadata or {},
         }
 
 
-def stream_text(text: str, *, intent: str = "chat", function: str = "", slots: dict | None = None):
-    yield Frame("start", "", intent=intent, function=function, slots=slots)
+def stream_text(
+    text: str,
+    *,
+    intent: str = "chat",
+    function: str = "",
+    slots: dict | None = None,
+    metadata: dict | None = None,
+):
+    yield Frame("start", "", intent=intent, function=function, slots=slots, metadata=metadata)
     for chunk in split_for_stream(text):
-        yield Frame("delta", chunk, intent=intent, function=function, slots=slots)
-    yield Frame("end", "", intent=intent, function=function, slots=slots)
+        yield Frame("delta", chunk, intent=intent, function=function, slots=slots, metadata=metadata)
+    yield Frame("end", "", intent=intent, function=function, slots=slots, metadata=metadata)
 
 
 def split_for_stream(text: str, size: int = 12) -> list[str]:

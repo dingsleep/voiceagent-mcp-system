@@ -19,6 +19,12 @@ python -m voice_agent_mcp.cli --query "北京明天天气怎么样"
 | NLG | `voice_agent_mcp/agent.py` | 把结构化工具结果转成语音播报文案 |
 | Streaming Frame | `voice_agent_mcp/frames.py` | 按 delta / final frame 返回，模拟语音助手流式输出 |
 
+## NLU 运行模式
+
+默认使用 `rule` 后端，保证无模型、无网络时仍可演示。设置 `VOICE_AGENT_NLU_BACKEND=remote` 或 CLI 参数 `--nlu-backend remote` 后，Demo 会调用已有的 `/chatnlu-server/v1` 服务。
+
+远程调用携带 `query`、`trace_id` 和 `enable_dm=false`，并校验返回的 `intent`、`function`、`slots`。服务不可达、响应不合法或工具不在 Demo 注册表中时，系统自动回落到规则后端。每个最终 frame 的 `metadata` 会记录后端、降级原因和总耗时，便于定位问题。
+
 ## 示例输出
 
 ```text

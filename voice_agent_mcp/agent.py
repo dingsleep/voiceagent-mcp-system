@@ -1,39 +1,94 @@
 from .arbitration import arbitrate
 from .frames import Frame, stream_text
 from .memory import MemoryStore, Turn
-from .nlu import parse_task
+import time
+import uuid
+
+from .nlu_backends import NLUBackend, RuleNluBackend, build_nlu_backend
 from .rewrite import rewrite_query
 from .tools import ToolRegistry, default_registry
 
 
 class DialogueAgent:
-    def __init__(self, memory: MemoryStore | None = None, tools: ToolRegistry | None = None):
+    def __init__(
+        self,
+        memory: MemoryStore | None = None,
+        tools: ToolRegistry | None = None,
+        nlu_backend: NLUBackend | None = None,
+    ):
         self.memory = memory or MemoryStore()
         self.tools = tools or default_registry()
+        self.nlu_backend = nlu_backend or build_nlu_backend()
 
-    def handle(self, query: str, sender_id: str = "demo") -> list[Frame]:
+    def handle(self, query: str, sender_id: str = "demo", trace_id: str | None = None) -> list[Frame]:
+        started = time.perf_counter()
+        trace_id = trace_id or uuid.uuid4().hex
         history = self.memory.get(sender_id)
         rewritten = rewrite_query(query, history)
         route = arbitrate(rewritten)
+        metadata = {"trace_id": trace_id, "route": route, "nlu_backend": "not_used"}
 
         if route == "reject":
             answer = "抱歉，这个问题我还没理解，请换个说法。"
             self.memory.append(sender_id, Turn(rewritten, answer, "reject"))
-            return list(stream_text(answer, intent="reject"))
+            return list(stream_text(answer, intent="reject", metadata=self._finish(metadata, started)))
 
         if route == "chat":
             answer = self._chat(rewritten)
             self.memory.append(sender_id, Turn(rewritten, answer, "chat"))
-            return list(stream_text(answer, intent="chat"))
+            return list(stream_text(answer, intent="chat", metadata=self._finish(metadata, started)))
 
-        nlu = parse_task(rewritten)
+        try:
+            decision = self.nlu_backend.parse(rewritten, trace_id)
+        except (OSError, RuntimeError, ValueError) as exc:
+            decision = RuleNluBackend().parse(rewritten, trace_id)
+            decision = decision.__class__(
+                result=decision.result,
+                backend=decision.backend,
+                latency_ms=decision.latency_ms,
+                fallback_reason=f"remote_error:{type(exc).__name__}",
+            )
+
+        nlu = decision.result
+        if not self.tools.has(nlu.function):
+            fallback = RuleNluBackend().parse(rewritten, trace_id)
+            decision = fallback.__class__(
+                result=fallback.result,
+                backend=fallback.backend,
+                latency_ms=decision.latency_ms + fallback.latency_ms,
+                fallback_reason=f"unsupported_function:{nlu.function}",
+            )
+            nlu = decision.result
+
         tool_result = self.tools.call(nlu.function, nlu.slots)
         answer = self._nlg(nlu.function, tool_result)
         self.memory.append(sender_id, Turn(rewritten, answer, nlu.intent, nlu.slots))
-        return list(stream_text(answer, intent=nlu.intent, function=nlu.function, slots=nlu.slots))
+        metadata.update(
+            {
+                "nlu_backend": decision.backend,
+                "nlu_latency_ms": decision.latency_ms,
+                "fallback_reason": decision.fallback_reason,
+            }
+        )
+        return list(
+            stream_text(
+                answer,
+                intent=nlu.intent,
+                function=nlu.function,
+                slots=nlu.slots,
+                metadata=self._finish(metadata, started),
+            )
+        )
 
-    def handle_as_dicts(self, query: str, sender_id: str = "demo") -> list[dict]:
-        return [frame.to_dict() for frame in self.handle(query, sender_id)]
+    def handle_as_dicts(self, query: str, sender_id: str = "demo", trace_id: str | None = None) -> list[dict]:
+        return [frame.to_dict() for frame in self.handle(query, sender_id, trace_id)]
+
+    def status(self) -> dict:
+        return {"status": "healthy", "nlu": self.nlu_backend.describe(), "tools": len(self.tools.list_tools())}
+
+    @staticmethod
+    def _finish(metadata: dict, started: float) -> dict:
+        return {**metadata, "total_latency_ms": round((time.perf_counter() - started) * 1000)}
 
     def _chat(self, query: str) -> str:
         if "笑话" in query:

@@ -21,6 +21,9 @@ class ToolRegistry:
             return {"error": f"tool not found: {name}"}
         return self._tools[name].handler(slots)
 
+    def has(self, name: str) -> bool:
+        return name in self._tools
+
     def list_tools(self) -> list[dict]:
         return [{"name": tool.name, "description": tool.description} for tool in self._tools.values()]
 

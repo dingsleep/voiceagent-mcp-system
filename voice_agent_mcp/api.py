@@ -11,7 +11,7 @@ agent = DialogueAgent()
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         if self.path == "/health":
-            self._json({"status": "healthy"})
+            self._json(agent.status())
             return
         self._json({"error": "not found"}, status=404)
 
@@ -22,10 +22,18 @@ class Handler(BaseHTTPRequestHandler):
 
         length = int(self.headers.get("Content-Length", "0"))
         body = self.rfile.read(length).decode("utf-8")
-        payload = json.loads(body or "{}")
+        try:
+            payload = json.loads(body or "{}")
+        except json.JSONDecodeError:
+            self._json({"error": "request body must be valid JSON"}, status=400)
+            return
         query = payload.get("query") or payload.get("transcript", "")
+        if not isinstance(query, str) or not query.strip():
+            self._json({"error": "query or transcript is required"}, status=400)
+            return
         sender_id = payload.get("sender_id", "demo")
-        self._json({"frames": agent.handle_as_dicts(query, sender_id)})
+        trace_id = payload.get("trace_id")
+        self._json({"frames": agent.handle_as_dicts(query, sender_id, trace_id)})
 
     def log_message(self, format: str, *args) -> None:
         return

@@ -93,7 +93,20 @@ curl -X POST http://127.0.0.1:8080/chat ^
 
 接口同时接受上游语音识别的转写文本，使用 `transcript` 代替 `query` 即可；本仓库不训练 ASR 模型。
 
-### 3. 验证项目
+### 3. 可选接入完整 NLU 服务
+
+默认 `rule` 模式不需要模型、Redis 或 API Key，适合快速演示。已有模型服务可通过远程后端接入：
+
+```bash
+conda run -n tx_agent python -m voice_agent_mcp.cli ^
+  --nlu-backend remote ^
+  --nlu-url http://127.0.0.1:8009/chatnlu-server/v1 ^
+  --query "北京明天天气怎么样"
+```
+
+远程 NLU 使用已有的 `function_call/chatnlu_infer.py` 协议，后者可继续连接 BERT intent recall 与 Function Calling 服务。远程服务超时、返回格式异常，或返回当前 Demo 未实现的工具时，Agent 会自动降级到规则后端，并在最终 frame 的 `metadata` 中给出 `nlu_backend`、`fallback_reason`、`trace_id` 和耗时。这样本地 Demo 不会因为外部依赖不可用而失效。
+
+### 4. 验证项目
 
 ```bash
 conda run -n tx_agent python eval/evaluate_demo.py
