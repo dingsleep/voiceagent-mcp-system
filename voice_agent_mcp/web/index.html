@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>车载多轮任务 Agent 控制台</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <main class="console-shell">
+    <header class="topbar">
+      <div><p class="eyebrow">VOICEAGENT / LOCAL CONTROL ROOM</p><h1>车载多轮任务 Agent 控制台</h1></div>
+      <div class="system-state"><span class="pulse"></span><span id="system-status">系统检查中</span></div>
+    </header>
+    <section class="workspace">
+      <aside class="rail">
+        <p class="rail-label">场景</p>
+        <button class="prompt" data-prompt="北京明天天气怎么样">查询明日天气</button>
+        <button class="prompt" data-prompt="播放周杰伦的歌">启动音乐</button>
+        <button class="prompt" data-prompt="导航到北京站">规划路线</button>
+        <button class="prompt" data-prompt="打开空调">座舱控制</button>
+        <button class="prompt" data-prompt="asdfghjkl">拒识测试</button>
+        <div class="rail-foot"><span>LOCAL</span><span id="rate-limit">12 req/min</span></div>
+      </aside>
+      <section class="conversation">
+        <div class="conversation-head"><span>对话</span><span id="turn-state">等待输入</span></div>
+        <div id="messages" class="messages" aria-live="polite">
+          <article class="message assistant"><div class="avatar">VA</div><div class="bubble">我已连接本地微调模型、DeepSeek Function Calling 与 MCP 工具。可以直接问天气、导航或播放音乐。</div></article>
+        </div>
+        <form id="chat-form" class="composer">
+          <input id="query" autocomplete="off" placeholder="例如：北京明天天气怎么样" aria-label="输入消息">
+          <button id="send" type="submit">发送</button>
+          <p class="composer-hint">可试：播放薛之谦音乐、帮我导航到徐州市、附近充电站、打开空调、打开后备箱后输入确认执行</p>
+        </form>
+      </section>
+      <aside class="telemetry">
+        <section class="panel"><div class="panel-title">任务执行</div><div id="task-summary" class="task-summary">尚未执行任务</div></section>
+        <section class="panel"><div class="panel-title">运行 Trace</div><ol id="trace" class="trace"><li><span class="dot idle"></span><span>等待任务请求</span></li></ol></section>
+        <section class="panel"><div class="panel-title">模型与响应</div><dl id="metrics" class="metrics"><div><dt>总耗时</dt><dd>-</dd></div><div><dt>Token</dt><dd>-</dd></div><div><dt>远程状态</dt><dd>-</dd></div></dl></section>
+        <section id="cockpit" class="panel cockpit hidden"><div class="panel-title">座舱状态 <span class="simulation-badge">SIMULATED</span></div><p>模拟执行，不控制真实车辆。意图识别与工具调用见上方 Trace。</p><dl id="cockpit-state" class="cockpit-state"></dl></section>
+        <section id="player" class="panel player hidden"><div class="panel-title">音乐播放</div><p id="player-copy">等待音乐任务</p><div class="player-actions"><button id="third-party" type="button">QQ 音乐搜索</button><button id="netease-music" type="button">网易云音乐搜索</button><button id="demo-audio" type="button">播放原创演示</button></div><audio id="demo-audio-element" class="demo-audio" controls preload="auto" src="/assets/night-drive-original-demo.wav"></audio></section>
+        <section id="navigation" class="panel navigation hidden"><div class="panel-title">路线导航</div><p id="route-copy">等待路线任务</p><div id="route-actions" class="route-actions"></div><dl id="route-metrics" class="route-metrics hidden"></dl><div id="route-map" class="route-map hidden" aria-label="高德路线地图"></div></section>
+      </aside>
+    </section>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>

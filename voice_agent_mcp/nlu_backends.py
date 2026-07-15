@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable, Protocol
 from urllib.error import URLError
 from urllib.request import Request, urlopen
@@ -20,6 +20,7 @@ REMOTE_FUNCTION_MAP = {
     "Play_Online_Music": "music.play",
     "Go_POI": "map.route",
     "Go_Company": "map.route",
+    "Add_Via": "map.route",
 }
 
 REMOTE_INTENT_MAP = {
@@ -29,6 +30,7 @@ REMOTE_INTENT_MAP = {
     "Play_Online_Music": "music_play",
     "Go_POI": "map_route",
     "Go_Company": "map_route",
+    "Add_Via": "map_route",
 }
 
 
@@ -38,12 +40,13 @@ class NLUDecision:
     backend: str
     latency_ms: int
     fallback_reason: str = ""
+    trace: dict = field(default_factory=dict)
 
 
 class NLUBackend(Protocol):
     name: str
 
-    def parse(self, query: str, trace_id: str) -> NLUDecision: ...
+    def parse(self, query: str, trace_id: str, context: dict | None = None) -> NLUDecision: ...
 
     def describe(self) -> dict: ...
 
@@ -51,7 +54,7 @@ class NLUBackend(Protocol):
 class RuleNluBackend:
     name = "rule"
 
-    def parse(self, query: str, trace_id: str) -> NLUDecision:
+    def parse(self, query: str, trace_id: str, context: dict | None = None) -> NLUDecision:
         started = time.perf_counter()
         return NLUDecision(
             result=parse_task(query),
@@ -76,9 +79,11 @@ class RemoteNluBackend:
         self.timeout_seconds = timeout_seconds
         self._transport = transport or _post_json
 
-    def parse(self, query: str, trace_id: str) -> NLUDecision:
+    def parse(self, query: str, trace_id: str, context: dict | None = None) -> NLUDecision:
         started = time.perf_counter()
         payload = {"query": query, "trace_id": trace_id, "enable_dm": False}
+        if context:
+            payload["context"] = context
         response = self._transport(self.endpoint, payload, self.timeout_seconds)
         if response.get("source") == "fallback":
             fallback = RuleNluBackend().parse(query, trace_id)
@@ -87,9 +92,15 @@ class RemoteNluBackend:
                 backend=fallback.backend,
                 latency_ms=_elapsed_ms(started),
                 fallback_reason=f"remote_fallback:{response.get('fallback_reason') or 'unknown'}",
+                trace=_trace_from_response(response),
             )
         result = _parse_response(response)
-        return NLUDecision(result=result, backend=self.name, latency_ms=_elapsed_ms(started))
+        return NLUDecision(
+            result=result,
+            backend=self.name,
+            latency_ms=_elapsed_ms(started),
+            trace=_trace_from_response(response),
+        )
 
     def describe(self) -> dict:
         return {
@@ -157,7 +168,7 @@ def _normalize_slots(function: str, slots: dict) -> dict:
     if function in {"Search_Music", "Play_Online_Music"}:
         artist = _first_slot(slots, "Singer", "singer", "Artist", "artist", "\u6b4c\u624b")
         return {"artist": artist} if artist else {}
-    if function == "Go_POI":
+    if function in {"Go_POI", "Add_Via"}:
         destination = _first_slot(slots, "POI", "poi", "Destination", "destination", "Name", "name")
         return {"destination": destination} if destination else {}
     if function == "Go_Company":
@@ -175,3 +186,8 @@ def _first_slot(slots: dict, *names: str):
 
 def _elapsed_ms(started: float) -> int:
     return round((time.perf_counter() - started) * 1000)
+
+
+def _trace_from_response(payload: dict) -> dict:
+    trace = payload.get("trace", {})
+    return trace if isinstance(trace, dict) else {}

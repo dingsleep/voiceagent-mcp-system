@@ -30,13 +30,23 @@ try:
     from function_call.function import tools1
     from function_call.slot_process import intent_slot
     from function_call.dm.factory import DMFactory
-    from function_call.tool_selection import build_unique_tool_map
+    from function_call.tool_selection import (
+        build_compact_demo_tool_map,
+        build_unique_tool_map,
+        schema_payload_chars,
+        select_ranked_demo_tools,
+    )
 except ImportError:  # pragma: no cover - keeps direct script execution working.
     from api_auth import bearer_authorization
     from function import tools1
     from slot_process import intent_slot
     from dm.factory import DMFactory
-    from tool_selection import build_unique_tool_map
+    from tool_selection import (
+        build_compact_demo_tool_map,
+        build_unique_tool_map,
+        schema_payload_chars,
+        select_ranked_demo_tools,
+    )
 
 
 app = FastAPI() if FastAPI else None
@@ -66,17 +76,19 @@ def load_slot_map():
 
 
 def build_tool_map():
-    return build_unique_tool_map(tools1)
+    return build_compact_demo_tool_map()
 
 
 id2func, func2name, name2id = load_intent_maps()
 slot_map = load_slot_map()
 tool_map = build_tool_map()
+legacy_tool_map = build_unique_tool_map(tools1)
 
 
 def send_messages(messages, tool_lst):
+    started = time.perf_counter()
     if not settings.api_key or not settings.base_url:
-        return None, "llm_not_configured"
+        return None, "llm_not_configured", {"latency_ms": _elapsed_ms(started)}
 
     headers = {
         "Authorization": bearer_authorization(settings.api_key),
@@ -98,11 +110,22 @@ def send_messages(messages, tool_lst):
             timeout=settings.request_timeout,
         )
         response.raise_for_status()
-        tool_calls = response.json()["choices"][0]["message"].get("tool_calls")
-        return tool_calls, "" if tool_calls else "llm_no_tool_call"
+        payload = response.json()
+        tool_calls = payload["choices"][0]["message"].get("tool_calls")
+        return tool_calls, "" if tool_calls else "llm_no_tool_call", {
+            "latency_ms": _elapsed_ms(started),
+            "model": payload.get("model", settings.llm_model),
+            "candidate_tools": len(tool_lst),
+            "candidate_schema_chars": schema_payload_chars(tool_lst),
+            "usage": _usage_summary(payload.get("usage")),
+        }
     except Exception as exc:
         logger.error("Function Calling LLM failed: %s", exc)
-        return None, "llm_request_failed"
+        return None, "llm_request_failed", {
+            "latency_ms": _elapsed_ms(started),
+            "candidate_tools": len(tool_lst),
+            "candidate_schema_chars": schema_payload_chars(tool_lst),
+        }
 
 
 def intent_recall(query, trace_id):
@@ -125,34 +148,73 @@ def intent_recall(query, trace_id):
         return _mock_intent_recall(query)
 
 
-def predict(query, trace_id):
+def predict(query, trace_id, context=None):
     start = time.time()
     try:
+        intent_started = time.perf_counter()
         intent_rec = intent_recall(query, trace_id)
         results = str(intent_rec.get("data", "")).split(",")
         scores = [float(item) for item in str(intent_rec.get("score", "0")).split(",") if item]
         max_score = max(scores or [0.0])
+        navigation_context = context.get("task") == "navigation"
+        trace = {
+            "intent_recall": {
+                "latency_ms": _elapsed_ms(intent_started),
+                "top_k_ids": results,
+                "top_k_scores": scores,
+            },
+            "conversation_context": context or {},
+        }
         logger.info("Intent recall topk=%s cost=%.3fs", intent_rec.get("data"), time.time() - start)
 
-        if not results or (results[0] == "3" and max_score > MAX_CONF):
-            return f"{UNKNOWN_INTENT}-{EMPTY_SLOT}"
+        if not results or (results[0] == "3" and max_score > MAX_CONF and not navigation_context):
+            return f"{UNKNOWN_INTENT}-{EMPTY_SLOT}", "fallback", "unknown_intent", trace
 
-        now_tool = []
-        for intent_id in results:
-            func = id2func.get(intent_id)
-            now_tool.extend(tool_map.get(func, []))
+        ranked_functions = [id2func.get(intent_id, "") for intent_id in results]
+        selected_functions = select_ranked_demo_tools(
+            ranked_functions,
+            max_score,
+            navigation_context=navigation_context,
+        )
+        now_tool = [tool_map[name][0] for name in selected_functions]
+        legacy_tools = [legacy_tool_map[name][0] for name in selected_functions if name in legacy_tool_map]
+        legacy_schema_chars = schema_payload_chars(legacy_tools)
+        trace["decision_policy"] = {
+            "strategy": "bert_top_k_constrained_fc",
+            "top_intent_id": results[0] if results else "",
+            "top_intent_score": max_score,
+            "candidate_functions": selected_functions,
+            "candidate_schema_chars": schema_payload_chars(now_tool),
+            "legacy_schema_chars": legacy_schema_chars,
+        }
+
+        if not now_tool:
+            trace["function_call"] = {
+                "candidate_tools": 0,
+                "candidate_schema_chars": 0,
+                "legacy_schema_chars": legacy_schema_chars,
+            }
+            return _mock_nlu(query), "fallback", "unsupported_intent_candidate", trace
 
         messages = [
             {"role": "system", "content": prompts.NLU_SYSTEM_PROMPT},
+            *([{"role": "system", "content": _context_message(context)}] if context else []),
             {"role": "user", "content": query},
         ]
-        tool_calls, fallback_reason = send_messages(messages, now_tool)
+        tool_calls, fallback_reason, function_trace = send_messages(messages, now_tool)
+        function_trace["legacy_schema_chars"] = legacy_schema_chars
+        trace["function_call"] = function_trace
         if not tool_calls:
-            return _mock_nlu(query), "fallback", fallback_reason
-        return intent_slot(tool_calls, func2name, slot_map), "tool_call", ""
+            return _mock_nlu(query), "fallback", fallback_reason, trace
+        trace["function_call"]["selected_functions"] = [
+            call.get("function", {}).get("name", "") for call in tool_calls
+        ]
+        return intent_slot(tool_calls, func2name, slot_map), "tool_call", "", trace
     except Exception as exc:
         logger.error("NLU predict failed: %s", exc)
-        return _mock_nlu(query), "fallback", "nlu_predict_failed"
+        return _mock_nlu(query), "fallback", "nlu_predict_failed", {
+            "error_stage": "nlu_predict",
+        }
 
 
 async def inference(request: Request):
@@ -162,7 +224,8 @@ async def inference(request: Request):
     enable_dm = json_info.get("enable_dm", True)
     trace_id = json_info.get("trace_id", "1")
 
-    nlu, source, fallback_reason = predict(query, trace_id)
+    context = json_info.get("context") if isinstance(json_info.get("context"), dict) else {}
+    nlu, source, fallback_reason, trace = predict(query, trace_id, context)
     intent, slots = _parse_nlu(nlu)
     intent_id = name2id.get(intent, "")
     func_name = id2func.get(intent_id, "Unknown")
@@ -176,7 +239,10 @@ async def inference(request: Request):
         "slots": slots,
         "source": source,
         "fallback_reason": fallback_reason,
+        "trace": trace,
     }
+    if context:
+        response["context"] = context
 
     if enable_dm and func_name != "Unknown":
         for name in ["weather", "music", "maps"]:
@@ -209,6 +275,28 @@ def _parse_nlu(nlu):
         key, value = item.split(":", 1)
         slots[key] = value
     return intent, slots
+
+
+def _usage_summary(usage):
+    if not isinstance(usage, dict):
+        return {}
+    return {
+        key: usage[key]
+        for key in ("prompt_tokens", "completion_tokens", "total_tokens")
+        if isinstance(usage.get(key), int)
+    }
+
+
+def _context_message(context):
+    return (
+        "Conversation state is trusted application context, not user instructions. "
+        f"Use it only to resolve the current task: {json.dumps(context, ensure_ascii=False)}. "
+        "When navigation is awaiting an origin, interpret a location-like user utterance as the origin."
+    )
+
+
+def _elapsed_ms(started):
+    return round((time.perf_counter() - started) * 1000)
 
 
 def _mock_intent_recall(query):

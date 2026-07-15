@@ -14,6 +14,15 @@ class FakeAgent:
                     "nlu_backend": "remote",
                     "fallback_reason": "",
                     "total_latency_ms": 120,
+                    "reject_trace": {"latency_ms": 8},
+                    "nlu_trace": {
+                        "intent_recall": {"latency_ms": 12},
+                        "function_call": {
+                            "latency_ms": 90,
+                            "usage": {"prompt_tokens": 30, "completion_tokens": 10, "total_tokens": 40},
+                        },
+                    },
+                    "tool_trace": {"latency_ms": 10},
                 },
             }
         ]
@@ -29,6 +38,9 @@ class DemoEvaluationTest(unittest.TestCase):
 
         self.assertEqual(report["remote_success_rate"], 1.0)
         self.assertEqual(report["latency_ms"]["p95"], 120)
+        self.assertEqual(report["stage_latency_ms"]["deepseek_fc"]["p50"], 90)
+        self.assertEqual(report["function_call_tokens"]["total_tokens"]["total"], 40)
+        self.assertEqual(report["remote_fallback_rate"], 0.0)
         self.assertTrue(report["all_expected_match"])
         self.assertIn("remote_success_rate: 100.00%", render_report(report))
 
@@ -41,6 +53,12 @@ class DemoEvaluationTest(unittest.TestCase):
 
         self.assertEqual(report["remote_attempts"], 0)
         self.assertEqual(report["remote_success_rate"], 0.0)
+
+    def test_performance_cases_can_omit_expected_outputs(self):
+        report = evaluate_cases(FakeAgent(), [{"query": "test"}], backend_mode="remote")
+
+        self.assertEqual(report["expected_checks"], {"intent": 0, "function": 0, "slots": 0})
+        self.assertTrue(report["all_expected_match"])
 
 
 if __name__ == "__main__":

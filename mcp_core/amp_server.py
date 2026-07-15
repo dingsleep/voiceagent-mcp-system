@@ -6,7 +6,14 @@ import requests
 from mcp.server.fastmcp import FastMCP
 
 AMAP_MAPS_API_KEY = os.environ.get("AMAP_MAPS_API_KEY", "")
+AMAP_REQUEST_TIMEOUT_SECONDS = float(os.environ.get("AMAP_REQUEST_TIMEOUT_SECONDS", "6"))
 mcp = FastMCP("amap-maps")
+
+
+def _request_error(exc: requests.exceptions.RequestException) -> Dict[str, str]:
+    """Keep provider URLs and query parameters out of tool responses."""
+
+    return {"error": f"Amap request failed: {type(exc).__name__}"}
 
 
 @mcp.tool()
@@ -32,7 +39,7 @@ def maps_regeocode(location: str) -> Dict[str, Any]:
             "district": data["regeocode"]["addressComponent"]["district"]
         }
     except requests.exceptions.RequestException as e:
-        return {"error": f"Request failed: {str(e)}"}
+        return _request_error(e)
 
 @mcp.tool()
 def maps_geo(address: str, city: Optional[str] = None) -> Dict[str, Any]:
@@ -47,7 +54,8 @@ def maps_geo(address: str, city: Optional[str] = None) -> Dict[str, Any]:
             
         response = requests.get(
             "https://restapi.amap.com/v3/geocode/geo",
-            params=params
+            params=params,
+            timeout=AMAP_REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
         data = response.json()
@@ -72,7 +80,7 @@ def maps_geo(address: str, city: Optional[str] = None) -> Dict[str, Any]:
             })
         return {"return": results}
     except requests.exceptions.RequestException as e:
-        return {"error": f"Request failed: {str(e)}"}
+        return _request_error(e)
 
 @mcp.tool()
 def maps_ip_location(ip: str) -> Dict[str, Any]:
@@ -98,7 +106,7 @@ def maps_ip_location(ip: str) -> Dict[str, Any]:
             "rectangle": data.get("rectangle")
         }
     except requests.exceptions.RequestException as e:
-        return {"error": f"Request failed: {str(e)}"}
+        return _request_error(e)
 
 @mcp.tool()
 def maps_weather(city: str, date: str) -> Dict[str, Any]:
@@ -139,7 +147,7 @@ def maps_weather(city: str, date: str) -> Dict[str, Any]:
         return formated_forecasts
 
     except requests.exceptions.RequestException as e:
-        return {"error": f"Request failed: {str(e)}"}
+        return _request_error(e)
 
 @mcp.tool()
 def maps_bicycling_by_address(origin_address: str, destination_address: str, origin_city: Optional[str] = None, destination_city: Optional[str] = None) -> Dict[str, Any]:
@@ -252,7 +260,7 @@ def maps_bicycling(origin_coordinates: str, destination_coordinates: str) -> Dic
             }
         }
     except requests.exceptions.RequestException as e:
-        return {"error": f"Request failed: {str(e)}"}
+        return _request_error(e)
 
 @mcp.tool()
 def maps_direction_walking(origin: str, destination: str) -> Dict[str, Any]:
@@ -297,7 +305,7 @@ def maps_direction_walking(origin: str, destination: str) -> Dict[str, Any]:
             }
         }
     except requests.exceptions.RequestException as e:
-        return {"error": f"Request failed: {str(e)}"}
+        return _request_error(e)
 
 @mcp.tool()
 def maps_direction_driving(origin: str, destination: str) -> Dict[str, Any]:
@@ -309,7 +317,8 @@ def maps_direction_driving(origin: str, destination: str) -> Dict[str, Any]:
                 "key": AMAP_MAPS_API_KEY,
                 "origin": origin,
                 "destination": destination
-            }
+            },
+            timeout=AMAP_REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
         data = response.json()
@@ -326,7 +335,8 @@ def maps_direction_driving(origin: str, destination: str) -> Dict[str, Any]:
                     "road": step.get("road"),
                     "distance": step.get("distance"),
                     "orientation": step.get("orientation"),
-                    "duration": step.get("duration")
+                    "duration": step.get("duration"),
+                    "polyline": step.get("polyline"),
                 })
             paths.append({
                 "path": path.get("path"),
@@ -343,7 +353,7 @@ def maps_direction_driving(origin: str, destination: str) -> Dict[str, Any]:
             }
         }
     except requests.exceptions.RequestException as e:
-        return {"error": f"Request failed: {str(e)}"}
+        return _request_error(e)
 
 @mcp.tool()
 def maps_direction_transit_integrated(origin: str, destination: str, city: str, cityd: str) -> Dict[str, Any]:
@@ -431,7 +441,7 @@ def maps_direction_transit_integrated(origin: str, destination: str, city: str, 
             }
         }
     except requests.exceptions.RequestException as e:
-        return {"error": f"Request failed: {str(e)}"}
+        return _request_error(e)
 
 @mcp.tool()
 def maps_distance(origins: str, destination: str, type: str = "1") -> Dict[str, Any]:
@@ -463,7 +473,7 @@ def maps_distance(origins: str, destination: str, type: str = "1") -> Dict[str, 
             
         return {"results": results}
     except requests.exceptions.RequestException as e:
-        return {"error": f"Request failed: {str(e)}"}
+        return _request_error(e)
 
 @mcp.tool()
 def maps_text_search(keywords: str, city: str = "", citylimit: str = "false", top_k = 3) -> Dict[str, Any]:
@@ -476,7 +486,8 @@ def maps_text_search(keywords: str, city: str = "", citylimit: str = "false", to
                 "keywords": keywords,
                 "city": city,
                 "citylimit": citylimit
-            }
+            },
+            timeout=AMAP_REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
         data = response.json()
@@ -495,6 +506,7 @@ def maps_text_search(keywords: str, city: str = "", citylimit: str = "false", to
                 "id": poi.get("id"),
                 "name": poi.get("name"),
                 "address": poi.get("address"),
+                "location": poi.get("location"),
                 "typecode": poi.get("typecode")
             })
             
@@ -502,7 +514,7 @@ def maps_text_search(keywords: str, city: str = "", citylimit: str = "false", to
             "pois": pois[:top_k]
         }
     except requests.exceptions.RequestException as e:
-        return {"error": f"Request failed: {str(e)}"}
+        return _request_error(e)
 
 @mcp.tool()
 def maps_around_search(location: str, radius: str = "1000", keywords: str = "") -> Dict[str, Any]:
@@ -515,7 +527,8 @@ def maps_around_search(location: str, radius: str = "1000", keywords: str = "") 
                 "location": location,
                 "radius": radius,
                 "keywords": keywords
-            }
+            },
+            timeout=AMAP_REQUEST_TIMEOUT_SECONDS,
         )
         response.raise_for_status()
         data = response.json()
@@ -529,12 +542,13 @@ def maps_around_search(location: str, radius: str = "1000", keywords: str = "") 
                 "id": poi.get("id"),
                 "name": poi.get("name"),
                 "address": poi.get("address"),
+                "location": poi.get("location"),
                 "typecode": poi.get("typecode")
             })
             
         return {"pois": pois}
     except requests.exceptions.RequestException as e:
-        return {"error": f"Request failed: {str(e)}"}
+        return _request_error(e)
 
 @mcp.tool()
 def maps_search_detail(id: str) -> Dict[str, Any]:
@@ -574,7 +588,7 @@ def maps_search_detail(id: str) -> Dict[str, Any]:
             
         return result
     except requests.exceptions.RequestException as e:
-        return {"error": f"Request failed: {str(e)}"}
+        return _request_error(e)
 
 if __name__ == "__main__":
     mcp.run(transport='stdio')

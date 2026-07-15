@@ -2,7 +2,12 @@ import unittest
 from pathlib import Path
 
 from function_call.api_auth import bearer_authorization
-from function_call.tool_selection import build_unique_tool_map
+from function_call.tool_selection import (
+    build_compact_demo_tool_map,
+    build_unique_tool_map,
+    schema_payload_chars,
+    select_ranked_demo_tools,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -77,6 +82,24 @@ class FunctionToolTest(unittest.TestCase):
             tool_map["Go_POI"][0]["function"]["description"],
             "navigation to a specified point of interest",
         )
+
+    def test_compact_demo_catalog_keeps_only_runnable_contracts(self):
+        catalog = build_compact_demo_tool_map()
+
+        self.assertEqual(catalog["Go_POI"][0]["function"]["parameters"]["properties"], {"POI": {"type": "string", "description": "destination"}})
+        self.assertNotIn("Open_Nav", catalog)
+
+    def test_high_confidence_bert_uses_one_compact_candidate(self):
+        selected = select_ranked_demo_tools(["Go_POI", "Open_Nav", "Add_Via"], 0.996)
+        compact_chars = schema_payload_chars([build_compact_demo_tool_map()[name][0] for name in selected])
+
+        self.assertEqual(selected, ["Go_POI"])
+        self.assertGreater(compact_chars, 0)
+
+    def test_unsupported_recall_does_not_reach_function_call(self):
+        selected = select_ranked_demo_tools(["Open_Nav", "Adjust_Seat"], 0.999)
+
+        self.assertEqual(selected, [])
 
 
 if __name__ == "__main__":

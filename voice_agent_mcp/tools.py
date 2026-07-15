@@ -1,6 +1,8 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from .cockpit import CockpitSimulator
+
 
 @dataclass(frozen=True)
 class Tool:
@@ -33,6 +35,7 @@ def default_registry() -> ToolRegistry:
     registry.register(Tool("weather.query", "查询城市天气", _weather))
     registry.register(Tool("music.play", "播放歌手歌曲", _music))
     registry.register(Tool("map.route", "查询路线规划", _route))
+    registry.register(Tool("cockpit.control", "Simulated cockpit control", CockpitSimulator().execute))
     return registry
 
 

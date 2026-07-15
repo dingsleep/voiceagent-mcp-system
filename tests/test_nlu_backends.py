@@ -24,6 +24,41 @@ class NluBackendTest(unittest.TestCase):
         self.assertEqual(final["metadata"]["trace_id"], "trace-1")
         self.assertEqual(calls[0][1]["enable_dm"], False)
 
+    def test_remote_trace_is_exposed_in_final_metadata(self):
+        backend = RemoteNluBackend(
+            "http://nlu.example/v1",
+            transport=lambda endpoint, payload, timeout_seconds: {
+                "intent": "weather_query",
+                "function": "weather.query",
+                "slots": {},
+                "trace": {
+                    "intent_recall": {"top_k_ids": ["194"]},
+                    "function_call": {"usage": {"total_tokens": 42}},
+                },
+            },
+        )
+
+        final = DialogueAgent(nlu_backend=backend).handle_as_dicts("\u5317\u4eac\u5929\u6c14", trace_id="trace-2")[-1]
+
+        self.assertEqual(final["metadata"]["nlu_trace"]["intent_recall"]["top_k_ids"], ["194"])
+        self.assertEqual(final["metadata"]["nlu_trace"]["function_call"]["usage"]["total_tokens"], 42)
+
+    def test_remote_backend_forwards_structured_conversation_context(self):
+        calls = []
+
+        def transport(endpoint, payload, timeout_seconds):
+            calls.append(payload)
+            return {"intent": "map_route", "function": "map.route", "slots": {"destination": "\u4fdd\u5b9a"}}
+
+        backend = RemoteNluBackend("http://nlu.example/v1", transport=transport)
+        backend.parse(
+            "\u5f90\u5dde\u706b\u8f66\u7ad9",
+            "trace-context",
+            context={"task": "navigation", "destination": "\u4fdd\u5b9a", "awaiting": "origin"},
+        )
+
+        self.assertEqual(calls[0]["context"]["awaiting"], "origin")
+
     def test_legacy_weather_contract_is_normalized_for_demo_tool(self):
         backend = RemoteNluBackend(
             "http://nlu.example/v1",
@@ -97,6 +132,22 @@ class NluBackendTest(unittest.TestCase):
 
         self.assertEqual(final["function"], "map.route")
         self.assertEqual(final["slots"], {"destination": "\u516c\u53f8"})
+
+    def test_legacy_add_via_is_compatible_with_route_planning(self):
+        backend = RemoteNluBackend(
+            "http://nlu.example/v1",
+            transport=lambda endpoint, payload, timeout_seconds: {
+                "intent": "add via",
+                "function": "Add_Via",
+                "slots": {"POI": "\u5f90\u5dde\u9ad8\u94c1\u7ad9"},
+            },
+        )
+        final = DialogueAgent(nlu_backend=backend).handle_as_dicts(
+            "\u5bfc\u822a\u5230\u5f90\u5dde\u9ad8\u94c1\u7ad9\uff0c\u4ece\u5f90\u5dde\u706b\u8f66\u7ad9\u51fa\u53d1"
+        )[-1]
+
+        self.assertEqual(final["function"], "map.route")
+        self.assertEqual(final["metadata"]["nlu_backend"], "remote")
 
     def test_unsupported_remote_tool_falls_back_to_demo_contract(self):
         backend = RemoteNluBackend(
